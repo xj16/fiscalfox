@@ -40,13 +40,22 @@ module Statistics =
             acc / float (n - 1)
 
     /// Pearson correlation coefficient in [-1, 1]. Returns 0.0 for degenerate input.
+    /// Both series are aligned to their common length so covariance and the two
+    /// standard deviations are computed over the exact same observations —
+    /// otherwise the ratio could fall outside [-1, 1] for mismatched inputs.
     let correlation (xs: float list) (ys: float list) : float =
-        let sx = stdDev xs
-        let sy = stdDev ys
-        if sx = 0.0 || sy = 0.0 then
+        let n = min (List.length xs) (List.length ys)
+        if n < 2 then
             0.0
         else
-            covariance xs ys / (sx * sy)
+            let xs' = xs |> List.truncate n
+            let ys' = ys |> List.truncate n
+            let sx = stdDev xs'
+            let sy = stdDev ys'
+            if sx = 0.0 || sy = 0.0 then
+                0.0
+            else
+                covariance xs' ys' / (sx * sy)
 
     /// Linear-interpolated percentile of a sample. p is a fraction in [0, 1].
     /// Mirrors the common "type 7" quantile used by NumPy/Excel PERCENTILE.INC.
