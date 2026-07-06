@@ -1,0 +1,24 @@
+@inherits LayoutComponentBase
+
+<div class="page">
+    <header class="topbar">
+        <div class="brand">
+            <span class="brand-mark">🦊</span>
+            <span class="brand-name">FiscalFox</span>
+        </div>
+        <nav class="nav">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">Dashboard</NavLink>
+            <NavLink class="nav-link" href="instruments">Instruments</NavLink>
+            <NavLink class="nav-link" href="about">About</NavLink>
+        </nav>
+    </header>
+
+    <main class="content">
+        @Body
+    </main>
+
+    <footer class="footer">
+        <span>FiscalFox &mdash; self-hosted finance tracker &middot; .NET + F# analytics</span>
+        <a href="https://github.com/xj16/fiscalfox" target="_blank" rel="noopener">github.com/xj16/fiscalfox</a>
+    </footer>
+</div>

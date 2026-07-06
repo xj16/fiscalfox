@@ -1,0 +1,34 @@
+@page "/about"
+
+<PageTitle>FiscalFox — About</PageTitle>
+
+<h1>About FiscalFox</h1>
+
+<div class="card prose">
+    <p>
+        <strong>FiscalFox</strong> is a self-hosted personal finance &amp; investment tracker.
+        You own your data: it runs entirely on your machine against your own MySQL database,
+        with no paid market-data API and no cloud dependency.
+    </p>
+
+    <h2>Architecture</h2>
+    <ul>
+        <li><strong>FiscalFox.Api</strong> — ASP.NET Core (C#) Web API with EF Core over MySQL.</li>
+        <li><strong>FiscalFox.Analytics</strong> — a pure <strong>F#</strong> library for returns, risk and rebalancing, covered by FsCheck property tests.</li>
+        <li><strong>FiscalFox.Web</strong> — this Blazor Server UI.</li>
+        <li><strong>FiscalFox.Domain</strong> — shared entities and DTOs.</li>
+    </ul>
+
+    <h2>The analytics engine</h2>
+    <p>All the quantitative math lives in F# as small, pure functions:</p>
+    <ul>
+        <li>Simple &amp; log returns, cumulative wealth index, CAGR.</li>
+        <li>Volatility (annualized), maximum drawdown, historical Value-at-Risk, Sharpe ratio.</li>
+        <li>Target-weight rebalancing that turns your allocation drift into concrete buy/sell trades.</li>
+    </ul>
+
+    <p class="muted">
+        Prices are cached open data (Stooq / Yahoo-style daily CSVs) shipped with the repo and
+        regenerable via <code>data/generate_prices.py</code>. Nothing here requires a paid key.
+    </p>
+</div>

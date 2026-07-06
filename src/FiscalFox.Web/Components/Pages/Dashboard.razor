@@ -1,0 +1,196 @@
+@page "/"
+@inject FiscalFoxApiClient Api
+@rendermode InteractiveServer
+
+<PageTitle>FiscalFox — Dashboard</PageTitle>
+
+<h1>Portfolio Dashboard</h1>
+
+@if (_error is not null)
+{
+    <div class="alert">
+        Could not reach the FiscalFox API at startup. Make sure <code>FiscalFox.Api</code> is running
+        (default <code>http://localhost:5080</code>). <br /><small>@_error</small>
+    </div>
+}
+
+@if (_accounts.Count > 1)
+{
+    <div class="account-picker">
+        <label>Account:</label>
+        <select value="@_selectedAccountId" @onchange="OnAccountChanged">
+            @foreach (var a in _accounts)
+            {
+                <option value="@a.Id">@a.Name (@a.Currency)</option>
+            }
+        </select>
+    </div>
+}
+
+@if (_loading)
+{
+    <p class="muted">Loading analytics…</p>
+}
+else if (_report is not null)
+{
+    <section class="kpi-grid">
+        <div class="kpi">
+            <div class="kpi-label">Total Value</div>
+            <div class="kpi-value">@_report.TotalValue.ToString("C0")</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">Annualized Return</div>
+            <div class="kpi-value @Sign(_report.Risk.AnnualizedReturn)">@Pct(_report.Risk.AnnualizedReturn)</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">Annualized Volatility</div>
+            <div class="kpi-value">@Pct(_report.Risk.AnnualizedVolatility)</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">Sharpe Ratio</div>
+            <div class="kpi-value">@_report.Risk.SharpeRatio.ToString("0.00")</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">Max Drawdown</div>
+            <div class="kpi-value neg">@Pct(-_report.Risk.MaxDrawdown)</div>
+        </div>
+        <div class="kpi">
+            <div class="kpi-label">Value at Risk (95%)</div>
+            <div class="kpi-value neg">@Pct(-_report.Risk.ValueAtRisk95)</div>
+        </div>
+    </section>
+
+    <section class="card">
+        <h2>Allocation</h2>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th class="num">Quantity</th>
+                    <th class="num">Price</th>
+                    <th class="num">Market Value</th>
+                    <th class="num">Weight</th>
+                    <th class="num">Target</th>
+                    <th>Allocation</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var p in _report.Positions)
+                {
+                    <tr>
+                        <td><strong>@p.Symbol</strong></td>
+                        <td class="num">@p.Quantity.ToString("0.####")</td>
+                        <td class="num">@p.Price.ToString("C2")</td>
+                        <td class="num">@p.MarketValue.ToString("C0")</td>
+                        <td class="num">@Pct(p.Weight)</td>
+                        <td class="num">@(p.TargetWeight.HasValue ? Pct(p.TargetWeight.Value) : "—")</td>
+                        <td>
+                            <div class="bar">
+                                <div class="bar-fill" style="width:@((p.Weight * 100).ToString("0.#"))%"></div>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </section>
+
+    <section class="card">
+        <h2>Rebalancing Plan</h2>
+        @if (_report.Rebalance.Count == 0)
+        {
+            <p class="muted">Portfolio is within tolerance of its target allocation. No trades suggested.</p>
+        }
+        else
+        {
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Action</th>
+                        <th class="num">Units</th>
+                        <th class="num">Amount</th>
+                        <th class="num">Current</th>
+                        <th class="num">Target</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var r in _report.Rebalance)
+                    {
+                        <tr>
+                            <td><strong>@r.Symbol</strong></td>
+                            <td><span class="pill @(r.Side == "Buy" ? "buy" : "sell")">@r.Side</span></td>
+                            <td class="num">@r.Units.ToString("0.####")</td>
+                            <td class="num">@r.Amount.ToString("C0")</td>
+                            <td class="num">@Pct(r.CurrentWeight)</td>
+                            <td class="num">@Pct(r.TargetWeight)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        }
+    </section>
+}
+else if (!_loading && _error is null)
+{
+    <p class="muted">No accounts found yet.</p>
+}
+
+@code {
+    private List<AccountVm> _accounts = new();
+    private int _selectedAccountId;
+    private PortfolioReport? _report;
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _accounts = await Api.GetAccountsAsync();
+            if (_accounts.Count > 0)
+            {
+                _selectedAccountId = _accounts[0].Id;
+                await LoadReportAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task OnAccountChanged(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out var id))
+        {
+            _selectedAccountId = id;
+            await LoadReportAsync();
+        }
+    }
+
+    private async Task LoadReportAsync()
+    {
+        _loading = true;
+        try
+        {
+            _report = await Api.GetPortfolioReportAsync(_selectedAccountId);
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private static string Pct(double v) => v.ToString("P1");
+    private static string Sign(double v) => v >= 0 ? "pos" : "neg";
+}

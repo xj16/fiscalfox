@@ -1,0 +1,43 @@
+# ---- .NET ----
+bin/
+obj/
+[Bb]in/
+[Oo]bj/
+*.user
+*.suo
+*.userprefs
+.vs/
+_ReSharper*/
+*.DotSettings.user
+
+# Build output
+build/
+dist/
+publish/
+out/
+artifacts/
+target/
+
+# ---- Node (tooling, if any) ----
+node_modules/
+
+# ---- Python (price generator) ----
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# ---- Logs / temp ----
+*.log
+*.tmp
+TestResults/
+coverage/
+*.trx
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+
+# ---- Misc ----
+.vagrant/

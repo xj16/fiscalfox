@@ -1,0 +1,48 @@
+name: fiscalfox
+
+services:
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpw
+      MYSQL_DATABASE: fiscalfox
+      MYSQL_USER: fiscalfox
+      MYSQL_PASSWORD: fiscalfox
+    ports:
+      - "3306:3306"
+    volumes:
+      - fiscalfox-db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-prootpw"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: src/FiscalFox.Api/Dockerfile
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      FiscalFox__DatabaseProvider: MySql
+      ConnectionStrings__FiscalFox: "server=db;port=3306;database=fiscalfox;user=fiscalfox;password=fiscalfox"
+    ports:
+      - "5080:8080"
+
+  web:
+    build:
+      context: .
+      dockerfile: src/FiscalFox.Web/Dockerfile
+    depends_on:
+      - api
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      FiscalFox__ApiBaseUrl: "http://api:8080"
+    ports:
+      - "5090:8080"
+
+volumes:
+  fiscalfox-db:

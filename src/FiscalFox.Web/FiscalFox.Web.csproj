@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <RootNamespace>FiscalFox.Web</RootNamespace>
+    <AssemblyName>FiscalFox.Web</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FiscalFox.Domain\FiscalFox.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

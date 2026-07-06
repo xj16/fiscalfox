@@ -1,0 +1,87 @@
+@page "/instruments"
+@inject FiscalFoxApiClient Api
+@rendermode InteractiveServer
+
+<PageTitle>FiscalFox — Instruments</PageTitle>
+
+<h1>Instruments</h1>
+<p class="muted">Risk/return computed by the F# analytics engine over cached open-data prices.</p>
+
+@if (_error is not null)
+{
+    <div class="alert">Could not load instruments. <small>@_error</small></div>
+}
+else if (_rows is null)
+{
+    <p class="muted">Loading…</p>
+}
+else
+{
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Symbol</th>
+                <th>Name</th>
+                <th class="num">Last Close</th>
+                <th class="num">Ann. Return</th>
+                <th class="num">Ann. Vol</th>
+                <th class="num">Sharpe</th>
+                <th class="num">Max DD</th>
+                <th class="num">VaR 95%</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in _rows)
+            {
+                <tr>
+                    <td><strong>@row.Instrument.Symbol</strong></td>
+                    <td>@row.Instrument.Name</td>
+                    <td class="num">@(row.Instrument.LastClose?.ToString("C2") ?? "—")</td>
+                    @if (row.Risk is not null)
+                    {
+                        <td class="num @Sign(row.Risk.AnnualizedReturn)">@Pct(row.Risk.AnnualizedReturn)</td>
+                        <td class="num">@Pct(row.Risk.AnnualizedVolatility)</td>
+                        <td class="num">@row.Risk.SharpeRatio.ToString("0.00")</td>
+                        <td class="num neg">@Pct(-row.Risk.MaxDrawdown)</td>
+                        <td class="num neg">@Pct(-row.Risk.ValueAtRisk95)</td>
+                    }
+                    else
+                    {
+                        <td class="num" colspan="5">—</td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private record Row(InstrumentVm Instrument, RiskReturnStats? Risk);
+
+    private List<Row>? _rows;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var instruments = await Api.GetInstrumentsAsync();
+            var rows = new List<Row>();
+            foreach (var i in instruments)
+            {
+                RiskReturnStats? risk = null;
+                try { risk = await Api.GetInstrumentRiskAsync(i.Symbol); }
+                catch { /* leave risk null for this row */ }
+                rows.Add(new Row(i, risk));
+            }
+            _rows = rows;
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private static string Pct(double v) => v.ToString("P1");
+    private static string Sign(double v) => v >= 0 ? "pos" : "neg";
+}

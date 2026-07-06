@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & test (.NET 8)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Restore
+        run: dotnet restore FiscalFox.sln
+
+      - name: Build (Release)
+        run: dotnet build FiscalFox.sln -c Release --no-restore
+
+      - name: Test — F# analytics (FsCheck property tests)
+        run: dotnet test tests/FiscalFox.Analytics.Tests/FiscalFox.Analytics.Tests.fsproj -c Release --no-build --verbosity normal
+
+      - name: Test — API integration (xUnit, in-memory EF)
+        run: dotnet test tests/FiscalFox.Api.Tests/FiscalFox.Api.Tests.csproj -c Release --no-build --verbosity normal
+
+  mysql-smoke:
+    name: MySQL end-to-end smoke test
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: rootpw
+          MYSQL_DATABASE: fiscalfox
+          MYSQL_USER: fiscalfox
+          MYSQL_PASSWORD: fiscalfox
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h localhost -uroot -prootpw"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish API
+        run: dotnet publish src/FiscalFox.Api/FiscalFox.Api.csproj -c Release -o publish
+
+      - name: Copy price data next to the published app
+        run: |
+          mkdir -p publish/data/prices
+          cp data/prices/*.csv publish/data/prices/
+
+      - name: Run API against MySQL and probe endpoints
+        env:
+          ASPNETCORE_URLS: http://127.0.0.1:5080
+          FiscalFox__DatabaseProvider: MySql
+          ConnectionStrings__FiscalFox: "server=127.0.0.1;port=3306;database=fiscalfox;user=fiscalfox;password=fiscalfox"
+        run: |
+          cd publish
+          dotnet FiscalFox.Api.dll &
+          API_PID=$!
+          echo "Started API (pid $API_PID); waiting for it to come up..."
+
+          for i in $(seq 1 30); do
+            if curl -sf http://127.0.0.1:5080/api/health > /dev/null; then
+              echo "API is up."
+              break
+            fi
+            sleep 2
+          done
+
+          echo "== /api/health =="
+          curl -sf http://127.0.0.1:5080/api/health | tee /tmp/health.json
+          echo
+          echo "== /api/instruments =="
+          curl -sf http://127.0.0.1:5080/api/instruments | tee /tmp/instruments.json
+          echo
+          echo "== /api/accounts =="
+          curl -sf http://127.0.0.1:5080/api/accounts | tee /tmp/accounts.json
+          echo
+
+          # Verify the seed populated instruments (VTI must be present).
+          grep -q "VTI" /tmp/instruments.json || { echo "Seed failed: VTI missing"; kill $API_PID; exit 1; }
+
+          # Verify analytics endpoint computes a portfolio report for account 1.
+          echo "== /api/analytics/portfolio/1 =="
+          curl -sf "http://127.0.0.1:5080/api/analytics/portfolio/1" | tee /tmp/report.json
+          echo
+          grep -q "totalValue" /tmp/report.json || { echo "Analytics failed"; kill $API_PID; exit 1; }
+
+          kill $API_PID
+          echo "MySQL end-to-end smoke test passed."

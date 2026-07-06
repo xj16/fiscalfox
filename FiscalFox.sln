@@ -1,0 +1,51 @@
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FiscalFox.Domain", "src\FiscalFox.Domain\FiscalFox.Domain.csproj", "{AB29B8CF-FE06-4D46-A78F-352AD6646F05}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FiscalFox.Analytics", "src\FiscalFox.Analytics\FiscalFox.Analytics.fsproj", "{FC1843F6-6FD7-49A9-B330-327537EF1EA4}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FiscalFox.Api", "src\FiscalFox.Api\FiscalFox.Api.csproj", "{19445D7A-C90B-446A-ACA0-9E76EC6E5D43}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FiscalFox.Web", "src\FiscalFox.Web\FiscalFox.Web.csproj", "{E29A5AC4-5F53-4FC3-9F64-BB080A59A41C}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "FiscalFox.Analytics.Tests", "tests\FiscalFox.Analytics.Tests\FiscalFox.Analytics.Tests.fsproj", "{A92F6C83-B51F-497E-9229-1C2002D3CA8B}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "FiscalFox.Api.Tests", "tests\FiscalFox.Api.Tests\FiscalFox.Api.Tests.csproj", "{0D024CA8-D337-4BB6-8E8C-FDFF9CC3ECBB}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{AB29B8CF-FE06-4D46-A78F-352AD6646F05}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AB29B8CF-FE06-4D46-A78F-352AD6646F05}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AB29B8CF-FE06-4D46-A78F-352AD6646F05}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AB29B8CF-FE06-4D46-A78F-352AD6646F05}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FC1843F6-6FD7-49A9-B330-327537EF1EA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FC1843F6-6FD7-49A9-B330-327537EF1EA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FC1843F6-6FD7-49A9-B330-327537EF1EA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FC1843F6-6FD7-49A9-B330-327537EF1EA4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19445D7A-C90B-446A-ACA0-9E76EC6E5D43}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19445D7A-C90B-446A-ACA0-9E76EC6E5D43}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19445D7A-C90B-446A-ACA0-9E76EC6E5D43}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19445D7A-C90B-446A-ACA0-9E76EC6E5D43}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E29A5AC4-5F53-4FC3-9F64-BB080A59A41C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E29A5AC4-5F53-4FC3-9F64-BB080A59A41C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E29A5AC4-5F53-4FC3-9F64-BB080A59A41C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E29A5AC4-5F53-4FC3-9F64-BB080A59A41C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A92F6C83-B51F-497E-9229-1C2002D3CA8B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A92F6C83-B51F-497E-9229-1C2002D3CA8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A92F6C83-B51F-497E-9229-1C2002D3CA8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A92F6C83-B51F-497E-9229-1C2002D3CA8B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D024CA8-D337-4BB6-8E8C-FDFF9CC3ECBB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D024CA8-D337-4BB6-8E8C-FDFF9CC3ECBB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D024CA8-D337-4BB6-8E8C-FDFF9CC3ECBB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D024CA8-D337-4BB6-8E8C-FDFF9CC3ECBB}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <RootNamespace>FiscalFox.Analytics</RootNamespace>
+    <AssemblyName>FiscalFox.Analytics</AssemblyName>
+    <!-- F# does not use these C# switches; disable to avoid warnings. -->
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Nullable>disable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Statistics.fs" />
+    <Compile Include="Returns.fs" />
+    <Compile Include="Risk.fs" />
+    <Compile Include="Rebalancing.fs" />
+    <Compile Include="Portfolio.fs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\FiscalFox.Domain\FiscalFox.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

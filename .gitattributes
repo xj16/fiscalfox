@@ -1,0 +1,10 @@
+# Normalize line endings: default to LF in the repository.
+* text=auto eol=lf
+
+# Explicitly binary
+*.png binary
+*.jpg binary
+*.ico binary
+
+# Windows-specific files keep CRLF
+*.sln text eol=crlf

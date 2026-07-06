@@ -1,0 +1,10 @@
+**/bin/
+**/obj/
+**/.vs/
+**/node_modules/
+**/__pycache__/
+publish/
+*.log
+.git/
+.github/
+TestResults/
