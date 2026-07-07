@@ -79,3 +79,23 @@ module PortfolioTests =
         // Each should move 1000 to reach 2000/2000.
         approx 1e-6 1000.0 aaa.Amount
         approx 1e-6 1000.0 bbb.Amount
+
+    [<Fact>]
+    let ``timeseries starts at 1 and its max drawdown matches the report`` () =
+        let holdings =
+            [ { Portfolio.HoldingInput.Symbol = "AAA"
+                Portfolio.HoldingInput.Quantity = 10.0
+                Portfolio.HoldingInput.Prices = [ 100.0; 120.0; 90.0; 110.0; 130.0 ]
+                Portfolio.HoldingInput.TargetWeight = None } ]
+
+        let ts = Portfolio.timeseries holdings
+        let report = Portfolio.report 0.04 10.0 holdings
+
+        // Equity index is anchored at 1.0 and has one point per return + the base.
+        Assert.Equal(1.0, ts.Points.[0].Equity, 9)
+        Assert.Equal(4, ts.Observations) // 5 prices -> 4 returns
+        Assert.Equal(5, ts.Points.Count)
+        // Drawdown series peaks at the same value the risk report reports.
+        approx 1e-9 report.Risk.MaxDrawdown ts.MaxDrawdown
+        // 120 -> 90 is a 25% peak-to-trough decline for the single asset.
+        approx 1e-9 0.25 ts.MaxDrawdown

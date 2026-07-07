@@ -1,5 +1,8 @@
+using System.Threading.RateLimiting;
 using FiscalFox.Api.Data;
+using FiscalFox.Api.Security;
 using FiscalFox.Api.Services;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,17 +29,54 @@ builder.Services.AddDbContext<FiscalFoxDbContext>(options =>
 });
 
 builder.Services.AddScoped<AnalyticsService>();
+builder.Services.AddScoped<TransactionService>();
 builder.Services.AddScoped<SeedService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// ---------------------------------------------------------------------------
+// CORS. Locked to the configured Web origins so an exposed API does not accept
+// browser calls from arbitrary sites. Set FiscalFox:AllowedOrigins (comma- or
+// array-separated) to override; defaults cover the local Blazor UI. Setting it
+// to "*" restores the permissive any-origin behavior for pure-localhost use.
+// ---------------------------------------------------------------------------
 const string CorsPolicy = "fiscalfox-web";
+var allowedOrigins = (builder.Configuration["FiscalFox:AllowedOrigins"]
+        ?? "http://localhost:5090;https://localhost:5090")
+    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(CorsPolicy, policy =>
-        policy.AllowAnyHeader().AllowAnyMethod().SetIsOriginAllowed(_ => true));
+    {
+        if (allowedOrigins.Contains("*"))
+            policy.AllowAnyHeader().AllowAnyMethod().SetIsOriginAllowed(_ => true);
+        else
+            policy.WithOrigins(allowedOrigins).AllowAnyHeader().AllowAnyMethod();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Rate limiting. A fixed-window limiter caps requests per client so a single
+// caller cannot hammer the analytics endpoints. Tunable via FiscalFox:RateLimit.
+// ---------------------------------------------------------------------------
+var permitPerWindow = builder.Configuration.GetValue("FiscalFox:RateLimit:PermitPerWindow", 300);
+var windowSeconds = builder.Configuration.GetValue("FiscalFox:RateLimit:WindowSeconds", 60);
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(ctx =>
+    {
+        var key = ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+        return RateLimitPartition.GetFixedWindowLimiter(key, _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = permitPerWindow,
+            Window = TimeSpan.FromSeconds(windowSeconds),
+            QueueLimit = 0
+        });
+    });
 });
 
 var app = builder.Build();
@@ -66,6 +106,10 @@ using (var scope = app.Services.CreateScope())
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors(CorsPolicy);
+app.UseRateLimiter();
+// Optional API key. No-op unless FiscalFox:ApiKey is configured, so the
+// zero-config demo and CI stay open while a self-hoster can lock it down.
+app.UseMiddleware<ApiKeyMiddleware>();
 app.MapControllers();
 
 app.Run();

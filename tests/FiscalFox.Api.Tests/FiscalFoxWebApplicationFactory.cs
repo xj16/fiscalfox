@@ -20,7 +20,10 @@ public class FiscalFoxWebApplicationFactory : WebApplicationFactory<Program>
             config.AddInMemoryCollection(new Dictionary<string, string?>
             {
                 ["FiscalFox:DatabaseProvider"] = "InMemory",
-                ["FiscalFox:PriceDirectory"] = priceDir
+                ["FiscalFox:PriceDirectory"] = priceDir,
+                // Keep the whole suite well under any window so the shared-host
+                // request volume never trips the rate limiter.
+                ["FiscalFox:RateLimit:PermitPerWindow"] = "100000"
             });
         });
     }

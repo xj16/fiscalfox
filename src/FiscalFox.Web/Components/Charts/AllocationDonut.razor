@@ -1,0 +1,76 @@
+@using FiscalFox.Domain.Analytics
+@using System.Globalization
+
+@*
+    Dependency-free inline-SVG allocation donut. One arc per position, sized by
+    portfolio weight, with a legend. Pure server-rendered SVG — no charting lib.
+*@
+
+@if (Positions is null || Positions.Count == 0 || Positions.Sum(p => p.Weight) <= 0)
+{
+    <p class="muted">No positions to allocate.</p>
+}
+else
+{
+    var slices = Positions
+        .Where(p => p.Weight > 0)
+        .OrderByDescending(p => p.Weight)
+        .ToList();
+
+    const double size = 220, cx = 110, cy = 110, rOuter = 96, rInner = 58;
+    var palette = new[] { "#ea7317", "#1f7a8c", "#2563eb", "#16a34a", "#9333ea", "#dc2626", "#ca8a04", "#0891b2" };
+
+    double angle = -Math.PI / 2; // start at 12 o'clock
+    var total = slices.Sum(p => p.Weight);
+
+    <figure class="chart chart-donut">
+        <figcaption>Allocation <span class="muted">— by market value</span></figcaption>
+        <div class="donut-row">
+            <svg viewBox="0 0 @F(size) @F(size)" role="img" aria-label="Portfolio allocation by weight"
+                 width="220" height="220">
+                @for (var i = 0; i < slices.Count; i++)
+                {
+                    var frac = slices[i].Weight / total;
+                    var sweep = frac * 2 * Math.PI;
+                    var a0 = angle;
+                    var a1 = angle + sweep;
+                    angle = a1;
+                    var color = palette[i % palette.Length];
+                    <path d="@Arc(cx, cy, rOuter, rInner, a0, a1)" fill="@color">
+                        <title>@slices[i].Symbol — @slices[i].Weight.ToString("P1")</title>
+                    </path>
+                }
+                <svg:text x="@F(cx)" y="@F(cy - 4)" text-anchor="middle" class="donut-center">@slices.Count</svg:text>
+                <svg:text x="@F(cx)" y="@F(cy + 14)" text-anchor="middle" class="donut-sub">positions</svg:text>
+            </svg>
+            <ul class="legend">
+                @for (var i = 0; i < slices.Count; i++)
+                {
+                    <li>
+                        <span class="swatch" style="background:@palette[i % palette.Length]"></span>
+                        <span class="legend-sym">@slices[i].Symbol</span>
+                        <span class="legend-val">@slices[i].Weight.ToString("P1")</span>
+                    </li>
+                }
+            </ul>
+        </div>
+    </figure>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<PositionValue>? Positions { get; set; }
+
+    private static string F(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+    // SVG path for a donut segment (outer arc CW, inner arc CCW).
+    private static string Arc(double cx, double cy, double rO, double rI, double a0, double a1)
+    {
+        double x0o = cx + rO * Math.Cos(a0), y0o = cy + rO * Math.Sin(a0);
+        double x1o = cx + rO * Math.Cos(a1), y1o = cy + rO * Math.Sin(a1);
+        double x1i = cx + rI * Math.Cos(a1), y1i = cy + rI * Math.Sin(a1);
+        double x0i = cx + rI * Math.Cos(a0), y0i = cy + rI * Math.Sin(a0);
+        var large = (a1 - a0) > Math.PI ? 1 : 0;
+        return $"M {F(x0o)} {F(y0o)} A {F(rO)} {F(rO)} 0 {large} 1 {F(x1o)} {F(y1o)} " +
+               $"L {F(x1i)} {F(y1i)} A {F(rI)} {F(rI)} 0 {large} 0 {F(x0i)} {F(y0i)} Z";
+    }
+}

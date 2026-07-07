@@ -65,18 +65,26 @@ public class AccountsController : ControllerBase
             .Include(h => h.Instrument)
             .ToListAsync(ct);
 
+        // Single grouped query for the latest close of every held instrument
+        // (avoids one round-trip per holding).
+        var instrumentIds = holdings.Select(h => h.InstrumentId).ToHashSet();
+        var lastCloses = await _db.PriceBars
+            .Where(p => instrumentIds.Contains(p.InstrumentId))
+            .GroupBy(p => p.InstrumentId)
+            .Select(g => new { g.Key, Close = g.OrderByDescending(p => p.Date).Select(p => p.Close).First() })
+            .ToDictionaryAsync(x => x.Key, x => x.Close, ct);
+
         var result = new List<HoldingDto>();
         foreach (var h in holdings)
         {
-            var lastClose = await _db.PriceBars
-                .Where(p => p.InstrumentId == h.InstrumentId)
-                .OrderByDescending(p => p.Date)
-                .Select(p => p.Close)
-                .FirstOrDefaultAsync(ct);
+            var lastClose = lastCloses.TryGetValue(h.InstrumentId, out var c) ? c : 0m;
+            var marketValue = h.Quantity * lastClose;
+            var unrealized = (lastClose - h.AverageCost) * h.Quantity;
 
             result.Add(new HoldingDto(
                 h.Id, h.InstrumentId, h.Instrument!.Symbol, h.Quantity,
-                h.AverageCost, h.TargetWeight, lastClose, h.Quantity * lastClose));
+                h.AverageCost, h.TargetWeight, lastClose, marketValue,
+                h.RealizedPnL, unrealized));
         }
         return Ok(result);
     }
@@ -129,8 +137,10 @@ public class AccountsController : ControllerBase
             .Select(p => p.Close)
             .FirstOrDefaultAsync(ct);
 
+        var unrealized = (lastClose - existing.AverageCost) * existing.Quantity;
         return Ok(new HoldingDto(
             existing.Id, instrument.Id, instrument.Symbol, existing.Quantity,
-            existing.AverageCost, existing.TargetWeight, lastClose, existing.Quantity * lastClose));
+            existing.AverageCost, existing.TargetWeight, lastClose, existing.Quantity * lastClose,
+            existing.RealizedPnL, unrealized));
     }
 }

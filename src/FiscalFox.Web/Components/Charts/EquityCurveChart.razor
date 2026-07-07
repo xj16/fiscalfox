@@ -1,0 +1,80 @@
+@using FiscalFox.Domain.Analytics
+@using System.Globalization
+
+@*
+    Dependency-free inline-SVG equity + drawdown chart.
+    Top pane: the portfolio wealth index (base 1.0). Bottom pane: running
+    drawdown as a shaded area. No external JS/CDN — it renders server-side and
+    is fully self-hostable (and screenshot-friendly for the portfolio).
+*@
+
+@if (Timeseries is null || Timeseries.Points.Count < 2)
+{
+    <p class="muted">Not enough history to plot an equity curve.</p>
+}
+else
+{
+    var pts = Timeseries.Points;
+    var n = pts.Count;
+
+    // Plot geometry.
+    const double W = 720, H = 260;
+    const double padL = 44, padR = 12, padT = 12;
+    const double eqH = 170;                 // equity pane height
+    const double gap = 14;                  // gap between panes
+    var ddTop = padT + eqH + gap;
+    var ddH = H - ddTop - 22;               // drawdown pane height
+    var plotW = W - padL - padR;
+
+    var minEq = pts.Min(p => p.Equity);
+    var maxEq = pts.Max(p => p.Equity);
+    if (Math.Abs(maxEq - minEq) < 1e-9) { maxEq += 0.01; minEq -= 0.01; }
+    var maxDd = Math.Max(Timeseries.MaxDrawdown, 1e-6);
+
+    double X(int i) => padL + plotW * i / (double)(n - 1);
+    double YEq(double v) => padT + eqH * (1 - (v - minEq) / (maxEq - minEq));
+    double YDd(double v) => ddTop + ddH * (v / maxDd);
+
+    var equityLine = string.Join(" ", pts.Select((p, i) => $"{F(X(i))},{F(YEq(p.Equity))}"));
+    var ddArea = $"{F(padL)},{F(ddTop)} " +
+                 string.Join(" ", pts.Select((p, i) => $"{F(X(i))},{F(YDd(p.Drawdown))}")) +
+                 $" {F(padL + plotW)},{F(ddTop)}";
+
+    var startEq = pts[0].Equity;
+    var endEq = pts[^1].Equity;
+    var lineColor = endEq >= startEq ? "var(--pos)" : "var(--neg)";
+
+    <figure class="chart">
+        <figcaption>Equity curve &amp; drawdown <span class="muted">— wealth index, base 1.00</span></figcaption>
+        <svg viewBox="0 0 @F(W) @F(H)" role="img" preserveAspectRatio="xMidYMid meet"
+             aria-label="Portfolio equity curve and drawdown">
+            <!-- equity gridlines + labels -->
+            @foreach (var frac in new[] { 0.0, 0.5, 1.0 })
+            {
+                var v = minEq + (maxEq - minEq) * frac;
+                var y = YEq(v);
+                <line x1="@F(padL)" y1="@F(y)" x2="@F(padL + plotW)" y2="@F(y)"
+                      stroke="var(--border)" stroke-width="1" />
+                <svg:text x="@F(padL - 6)" y="@F(y + 3)" text-anchor="end" class="ax">@v.ToString("0.00")</svg:text>
+            }
+
+            <!-- equity line -->
+            <polyline fill="none" stroke="@lineColor" stroke-width="2"
+                      stroke-linejoin="round" stroke-linecap="round" points="@equityLine" />
+
+            <!-- drawdown area -->
+            <polygon fill="var(--neg)" fill-opacity="0.15" points="@ddArea" />
+            <polyline fill="none" stroke="var(--neg)" stroke-width="1.5"
+                      points="@string.Join(" ", pts.Select((p, i) => $"{F(X(i))},{F(YDd(p.Drawdown))}"))" />
+            <svg:text x="@F(padL)" y="@F(ddTop - 4)" class="ax">Drawdown (max @((-Timeseries.MaxDrawdown).ToString("P1")))</svg:text>
+        </svg>
+    </figure>
+}
+
+@code {
+    [Parameter] public PortfolioTimeseries? Timeseries { get; set; }
+
+    // Invariant-culture, fixed-precision formatter so SVG coordinates never
+    // pick up a comma decimal separator on non-US hosts.
+    private static string F(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+}

@@ -41,7 +41,7 @@ module Portfolio =
 
     /// Aggregate portfolio daily returns by value-weighting each holding's returns.
     /// Series are aligned on their trailing overlap so uneven history never throws.
-    let private portfolioReturns (holdings: HoldingInput list) : float list =
+    let portfolioReturns (holdings: HoldingInput list) : float list =
         let withReturns =
             holdings
             |> List.map (fun h -> h, lastPrice h.Prices * h.Quantity, Returns.simpleReturns h.Prices)
@@ -59,6 +59,26 @@ module Portfolio =
                     let offset = List.length rets - minLen
                     let w = mv / totalValue
                     w * rets.[offset + i]) ]
+
+    /// The value-weighted equity curve (wealth index, base 1.0) and its running
+    /// drawdown, ready to plot. The reported max drawdown equals the peak of the
+    /// drawdown series and matches <see cref="report"/>'s risk figure.
+    let timeseries (holdings: HoldingInput list) : PortfolioTimeseries =
+        let rets = portfolioReturns holdings
+        let equity = Returns.cumulativeIndex rets
+        // Running drawdown from the highest peak seen so far (positive fraction).
+        let mutable peak = System.Double.NegativeInfinity
+        let points =
+            equity
+            |> List.mapi (fun i v ->
+                if v > peak then peak <- v
+                let dd = if peak > 0.0 then (peak - v) / peak else 0.0
+                EquityPoint(Index = i, Equity = v, Drawdown = dd))
+        let maxDd = Risk.maxDrawdown equity
+        PortfolioTimeseries(
+            Points = (List.toArray points :> IReadOnlyList<EquityPoint>),
+            MaxDrawdown = maxDd,
+            Observations = List.length rets)
 
     /// Build the full analytics report for a set of holdings.
     /// <paramref name="annualRiskFree"/> feeds the Sharpe ratio (e.g. 0.04 for 4%).

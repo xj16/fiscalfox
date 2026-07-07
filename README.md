@@ -1,90 +1,111 @@
 # 🦊 FiscalFox
 
-**Self-hosted personal finance & investment tracker — ASP.NET Core (C#) + a pure F# analytics engine, EF Core over MySQL, Blazor UI.**
+**Self-hosted personal-finance & investment tracker — an ASP.NET Core (C#) API over a pure, property-tested F# analytics engine, with a dependency-free Blazor dashboard. Your data, your machine, no paid market-data API.**
 
 [![CI](https://github.com/xj16/fiscalfox/actions/workflows/ci.yml/badge.svg)](https://github.com/xj16/fiscalfox/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-informational.svg)](LICENSE)
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4.svg)](https://dotnet.microsoft.com/)
+[![Coverage](https://img.shields.io/badge/coverage-analytics%2093%25%20%7C%20api%2089%25-brightgreen.svg)](#running-the-tests)
+[![Tests](https://img.shields.io/badge/tests-66%20passing-brightgreen.svg)](#running-the-tests)
 
-FiscalFox lets you track brokerage/bank/crypto accounts, holdings and transactions on **your own machine, against your own database** — and it computes real portfolio analytics (returns, risk, and a concrete rebalancing plan) in a dedicated, property-tested **F# library**. No paid market-data API, no cloud lock-in, no account required.
+FiscalFox tracks brokerage / bank / crypto accounts, holdings and **transactions
+with real cost-basis tracking**, and computes portfolio analytics — returns,
+risk, a rebalancing plan, a correlation matrix and a Markowitz efficient frontier
+— in a dedicated F# library covered by thousands of generated property-test
+cases. Everything runs **on your own machine, against your own database**. No
+cloud lock-in, no account, no paid data key.
 
 ---
 
 ## Why
 
-Most "finance dashboards" either phone home to a SaaS backend or need a paid data API to do anything useful. FiscalFox is deliberately the opposite:
+Most "finance dashboards" phone home to a SaaS backend or need a paid data API to
+do anything useful. FiscalFox is deliberately the opposite:
 
-- **You own the data.** It runs locally against MySQL you control.
-- **100% free to run.** Prices are shipped as cached open-data CSVs (Stooq / Yahoo-style daily exports) and regenerable offline — nothing here needs a paid key.
-- **The math is honest and testable.** All quantitative logic lives in a small, pure **F#** library covered by **FsCheck property tests**, so invariants (weights sum to 1, VaR is non-negative, Sharpe is 0 at zero volatility, …) are checked against thousands of generated inputs, not just a couple of hand-picked examples.
+- **You own the data.** It runs locally against MySQL you control (or fully
+  in-memory for a zero-setup demo).
+- **100% free to run.** Prices ship as cached open-data CSVs (Stooq / Yahoo-style
+  daily exports), regenerable offline — nothing needs a paid key.
+- **The math is honest and testable.** All quantitative logic is a small, pure
+  **F#** library under **FsCheck** property tests, so invariants (weights sum to
+  1, VaR ≥ 0, Sharpe = 0 at zero volatility, correlation ∈ [−1, 1], …) are
+  checked against thousands of generated inputs — not a couple of examples.
+- **No front-end dependencies.** The charts are hand-rolled inline SVG. No CDN,
+  no charting library, nothing loaded from the network.
 
 ## Features
 
-- **Accounts, holdings & transactions** — brokerage, bank, retirement, crypto or cash accounts with cost-basis tracking.
-- **Instruments with cached price history** — daily OHLC bars imported from local CSVs; no network calls.
+- **Accounts, holdings & transactions with cost basis.** Post
+  Buy / Sell / Dividend / Deposit / Withdrawal / Fee transactions; the engine
+  updates the position quantity, a **moving-average cost basis**, realized &
+  unrealized **P/L**, and the account cash balance — with over-sell and overdraft
+  guards.
+- **Instruments with cached price history** — daily OHLC bars imported from local
+  CSVs; no network calls.
 - **Portfolio analytics** computed by the F# engine:
-  - value & per-position **weights**
-  - **annualized return** and **volatility**
-  - **Sharpe ratio** (configurable risk-free rate)
-  - **maximum drawdown**
-  - **historical Value-at-Risk (95%)**
-- **Rebalancing planner** — turns your target allocation vs. current drift into concrete **buy/sell trades**, with a minimum-trade threshold to avoid churn.
-- **Blazor Server dashboard** — KPI cards, allocation table with weight bars, and the suggested rebalancing plan.
+  - value & per-position **weights**, **annualized return** and **volatility**
+  - **Sharpe ratio** (configurable risk-free rate), **max drawdown**,
+    **historical VaR (95%)**
+  - a value-weighted **equity curve + drawdown** time series
+  - a symbol-by-symbol **correlation matrix**
+  - a **Markowitz efficient frontier** (max-Sharpe portfolio + your current mix)
+- **Rebalancing planner** — target vs. drift → concrete **buy/sell** trades, with
+  a minimum-trade threshold to avoid churn.
+- **Blazor dashboard with dependency-free SVG charts** — KPI cards, an equity /
+  drawdown line, an allocation donut, a correlation heatmap and a
+  risk/return frontier scatter, plus allocation & rebalancing tables.
 - **REST API** with Swagger UI.
-- **Runs anywhere** — `docker compose up` brings up MySQL + API + UI; or run with the in-memory provider for a zero-setup demo.
+- **Hardened for exposure** — per-IP **rate limiting**, **CORS** locked to
+  configured origins, and an **optional API key** (all off/permissive by default
+  for the demo).
+- **Runs anywhere** — `docker compose up` for MySQL + API + UI, a one-command
+  `--profile demo` for a database-free showcase, or the in-memory provider for a
+  zero-setup local run.
+
+## Screens
+
+The dashboard renders four inline-SVG charts (no external libraries): an
+equity/drawdown curve, an allocation donut, a correlation heatmap and an
+efficient-frontier scatter with your current portfolio marked. See
+[`src/FiscalFox.Web/Components/Charts`](src/FiscalFox.Web/Components/Charts).
 
 ## Tech stack
 
 | Layer | Tech |
 | --- | --- |
 | Analytics engine | **F#** (pure functions, `FsCheck` property tests) |
-| Web API | **C# / ASP.NET Core** (controllers + Swagger) |
-| Persistence | **EF Core** over **MySQL** (Pomelo provider) |
-| UI | **Blazor Server** |
+| Web API | **C# / ASP.NET Core** (controllers, Swagger, rate limiting) |
+| Persistence | **EF Core** over **MySQL** (Pomelo) — or in-memory |
+| UI | **Blazor Server** + hand-rolled inline-SVG charts |
 | Shared model | C# class library (`FiscalFox.Domain`) |
-| Tests | xUnit (API integration, in-memory EF) + FsCheck.Xunit (analytics) |
-| CI | **GitHub Actions** (build, both test suites, and a real MySQL end-to-end smoke test) |
+| Tests | xUnit (API integration, in-memory EF) + FsCheck.Xunit (analytics) + coverlet |
+| CI | **GitHub Actions** — build, both test suites + coverage, and a real MySQL end-to-end smoke test |
 | Data | Cached open-data CSVs, generated by a small Python script |
 
-## Solution layout
+## Architecture
+
+The API does no math. It loads EF rows, materializes them into `float list`s, and
+calls **one pure F# function** that returns a shared DTO. Because every analytic
+is a pure function, the whole engine is exhaustively property-tested rather than
+spot-checked. The full C#↔F# boundary and a **formula reference for every
+metric** (VaR, Sharpe, drawdown, annualization, the 252-day / sample-vs-population
+conventions) live in **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**.
 
 ```
 FiscalFox.sln
 ├── src/
-│   ├── FiscalFox.Domain      # C#  — entities (Account, Instrument, Holding, …) + analytics DTOs
-│   ├── FiscalFox.Analytics   # F#  — Statistics, Returns, Risk, Rebalancing, Portfolio
-│   ├── FiscalFox.Api         # C#  — ASP.NET Core Web API + EF Core (MySQL) + seed/import
-│   └── FiscalFox.Web         # C#  — Blazor Server UI
+│   ├── FiscalFox.Domain      # C#  — entities + analytics DTOs (shared vocabulary)
+│   ├── FiscalFox.Analytics   # F#  — Statistics, Returns, Risk, Rebalancing, PortfolioMath, Portfolio
+│   ├── FiscalFox.Api         # C#  — ASP.NET Core API + EF Core + transaction engine + seed
+│   └── FiscalFox.Web         # C#  — Blazor dashboard + inline-SVG charts
 ├── tests/
-│   ├── FiscalFox.Analytics.Tests  # F#  — FsCheck property tests + example tests
+│   ├── FiscalFox.Analytics.Tests  # F#  — FsCheck property tests + examples
 │   └── FiscalFox.Api.Tests        # C#  — xUnit integration tests (WebApplicationFactory)
-├── data/
-│   ├── generate_prices.py    # regenerates the cached price CSVs (deterministic)
-│   └── prices/*.csv          # cached daily OHLC data (VTI, VXUS, BND, GLD, BTC-USD)
-├── docker-compose.yml        # MySQL + API + Web
-└── .github/workflows/ci.yml  # build + test + MySQL smoke test
+├── data/                     # generate_prices.py + cached OHLC CSVs
+├── docs/ARCHITECTURE.md
+├── docker-compose.yml        # MySQL + API + Web (+ a database-free `demo` profile)
+└── .github/workflows/ci.yml  # build + tests + coverage + MySQL smoke test
 ```
-
-## The F# analytics engine
-
-Everything quantitative is a small pure function, which is what makes it a great fit for property testing:
-
-| Module | Highlights |
-| --- | --- |
-| `Statistics` | mean, sample variance/stddev, covariance, Pearson correlation, linear-interpolated percentile |
-| `Returns` | simple & log returns, cumulative wealth index, total return, CAGR, annualization |
-| `Risk` | annualized volatility, **max drawdown**, **historical VaR**, **Sharpe ratio**, full `RiskReturnStats` |
-| `Rebalancing` | normalize targets → emit **buy/sell** trades above a min-trade size, turnover |
-| `Portfolio` | value-weighted portfolio returns + a full `PortfolioReport` the C# API returns verbatim |
-
-Example properties that CI enforces on every push:
-
-- portfolio **weights sum to ~1**
-- **Value-at-Risk is non-negative**, and a higher confidence never lowers it
-- **max drawdown ∈ [0, 1]**, and is 0 for a monotonically rising curve
-- a **zero-volatility** series produces a **zero Sharpe ratio**
-- an already-on-target portfolio yields **no rebalancing trades**
-- log and simple returns agree via `log(1 + r)`
 
 ## Getting started
 
@@ -93,81 +114,121 @@ Example properties that CI enforces on every push:
 - [.NET 8 SDK](https://dotnet.microsoft.com/download)
 - MySQL 8 — or just use Docker, or the in-memory provider (below)
 
-### Option A — one command with Docker
+### Option A — one command, no database (demo profile)
+
+The fastest way to see everything populated, with **no MySQL**:
 
 ```bash
-docker compose up --build
+docker compose --profile demo up --build
 ```
 
 - API + Swagger → <http://localhost:5080/swagger>
 - Blazor UI → <http://localhost:5090>
 
-On first run the API creates the schema, imports the cached prices, and seeds a demo portfolio.
+The API runs in-memory and seeds a demo portfolio **through the transaction
+engine** (deposit → buys → a partial sell that realizes a gain → a dividend), so
+the dashboard comes up with an honest cost basis, P/L and full analytics.
 
-### Option B — run locally against MySQL
-
-```bash
-# 1. start MySQL (or use your own) — matches the default connection string
-docker run -d --name fiscalfox-db -p 3306:3306 \
-  -e MYSQL_ROOT_PASSWORD=rootpw -e MYSQL_DATABASE=fiscalfox \
-  -e MYSQL_USER=fiscalfox -e MYSQL_PASSWORD=fiscalfox mysql:8.4
-
-# 2. run the API (creates schema + seeds on startup)
-dotnet run --project src/FiscalFox.Api      # http://localhost:5080/swagger
-
-# 3. in another terminal, run the UI
-dotnet run --project src/FiscalFox.Web      # http://localhost:5090
-```
-
-### Option C — zero-setup demo (no database)
-
-The API ships with an in-memory EF provider, handy for a quick look or for tests:
+### Option B — full stack with MySQL
 
 ```bash
-ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/FiscalFox.Api
+docker compose up --build
 ```
 
-`appsettings.Development.json` sets `FiscalFox:DatabaseProvider = InMemory`, so it seeds and serves everything without MySQL. (Data is not persisted between runs.)
+Same URLs; data persists in a MySQL volume. On first run the API creates the
+schema, imports the cached prices, and seeds the demo portfolio.
+
+### Option C — run locally
+
+```bash
+# zero-setup: in-memory provider, no database
+ASPNETCORE_ENVIRONMENT=Development dotnet run --project src/FiscalFox.Api   # :5080/swagger
+dotnet run --project src/FiscalFox.Web                                      # :5090
+```
+
+(`appsettings.Development.json` sets `FiscalFox:DatabaseProvider = InMemory`.)
+To run against your own MySQL instead, start one matching the default connection
+string and run the API without the Development environment.
 
 ## API tour
 
 | Method & path | Description |
 | --- | --- |
 | `GET /api/health` | liveness probe |
-| `GET /api/accounts` | list accounts |
-| `POST /api/accounts` | create an account |
-| `GET /api/accounts/{id}/holdings` | holdings with live valuation |
+| `GET /api/accounts` · `POST /api/accounts` | list / create accounts |
+| `GET /api/accounts/{id}/holdings` | holdings with live valuation + realized/unrealized P/L |
 | `POST /api/accounts/{id}/holdings` | add/increase a holding |
-| `GET /api/instruments` | instruments + last close |
-| `GET /api/instruments/{symbol}/prices` | cached price history |
+| `GET /api/accounts/{id}/transactions` | transaction history (newest first) |
+| `POST /api/accounts/{id}/transactions` | **apply a Buy/Sell/Dividend/Deposit/Withdrawal/Fee** — updates holdings, cost basis & cash |
+| `GET /api/instruments` · `GET /api/instruments/{symbol}/prices` | instruments + last close · price history |
 | `GET /api/analytics/portfolio/{accountId}` | **full analytics report** (value, weights, risk, rebalancing) |
+| `GET /api/analytics/portfolio/{accountId}/timeseries` | equity curve + drawdown series |
+| `GET /api/analytics/correlation` | symbol-by-symbol correlation matrix |
+| `GET /api/analytics/frontier/{accountId}` | efficient frontier (samples + max-Sharpe + current) |
 | `GET /api/analytics/instrument/{symbol}` | per-instrument risk/return stats |
 
-Example:
-
 ```bash
-curl "http://localhost:5080/api/analytics/portfolio/1?riskFree=0.04&minTrade=50" | jq
+# Post a buy, then read the analytics report:
+curl -X POST "http://localhost:5080/api/accounts/1/transactions" \
+  -H "Content-Type: application/json" \
+  -d '{"kind":0,"symbol":"VTI","quantity":5,"price":320,"fee":1}'
+
+curl "http://localhost:5080/api/analytics/frontier/1?samples=3000" | jq '.maxSharpe'
 ```
+
+`kind`: `0` Buy · `1` Sell · `2` Deposit · `3` Withdrawal · `4` Dividend · `5` Fee.
+
+## The F# analytics engine
+
+Everything quantitative is a small pure function — which is what makes it a great
+fit for property testing.
+
+| Module | Highlights |
+| --- | --- |
+| `Statistics` | mean, sample variance/stddev, covariance, Pearson correlation, linear-interpolated percentile |
+| `Returns` | simple & log returns, cumulative wealth index, total return, CAGR, annualization |
+| `Risk` | annualized volatility, **max drawdown**, **historical VaR**, **Sharpe ratio** |
+| `Rebalancing` | normalize targets → emit **buy/sell** trades above a min size, turnover |
+| `PortfolioMath` | **correlation matrix** + **Markowitz efficient-frontier** sampler |
+| `Portfolio` | value-weighted returns, the equity/drawdown **timeseries**, and the full `PortfolioReport` the API returns verbatim |
+
+Example properties CI enforces on every push:
+
+- portfolio **weights sum to ~1**; **VaR ≥ 0** and higher confidence never lowers it
+- **max drawdown ∈ [0, 1]**, and is 0 for a monotonically rising curve
+- a **zero-volatility** series gives a **zero Sharpe ratio**
+- the correlation matrix is **symmetric with a unit diagonal**, every entry ∈ [−1, 1]
+- frontier weights are **long-only and sum to 1**; the reported **max-Sharpe
+  portfolio dominates** every sample; the frontier is **deterministic for a fixed seed**
 
 ## Running the tests
 
 ```bash
-dotnet test                                                   # everything
-dotnet test tests/FiscalFox.Analytics.Tests                   # F# FsCheck property tests
-dotnet test tests/FiscalFox.Api.Tests                         # C# API integration tests
+dotnet test                                     # everything (66 tests)
+dotnet test tests/FiscalFox.Analytics.Tests     # F# FsCheck property tests (50)
+dotnet test tests/FiscalFox.Api.Tests           # C# API integration tests (16)
+
+# with coverage (cobertura report under ./coverage):
+dotnet test --collect:"XPlat Code Coverage" --results-directory coverage
 ```
 
-The API tests boot the real API in-process with `WebApplicationFactory` and the in-memory EF provider, so they exercise controllers → EF → the F# engine end to end without needing MySQL.
+The API tests boot the real API in-process with `WebApplicationFactory` and the
+in-memory EF provider, so they exercise controllers → EF → the F# engine end to
+end without needing MySQL. CI publishes an HTML coverage report as a build
+artifact. Measured line coverage: **F# analytics ≈ 93%**, **API ≈ 89%**.
 
 ## Regenerating the price cache
 
-The bundled CSVs are produced by a deterministic, seeded geometric-random-walk (so they're reproducible and free — no market API):
+The bundled CSVs come from a deterministic, seeded geometric-random-walk (so
+they're reproducible and free — no market API). The numbers are therefore
+illustrative, not real market data.
 
 ```bash
 python data/generate_prices.py
 ```
 
-Drop in your own `SYMBOL.csv` files (columns `Date,Open,High,Low,Close,Volume`) and the importer will pick them up on next startup.
+Drop in your own `SYMBOL.csv` files (columns `Date,Open,High,Low,Close,Volume`)
+and the importer picks them up on next startup.
 
 ## Configuration
 
@@ -176,14 +237,18 @@ Drop in your own `SYMBOL.csv` files (columns `Date,Open,High,Low,Close,Volume`) 
 | `FiscalFox:DatabaseProvider` | `MySql` | or `InMemory` |
 | `ConnectionStrings:FiscalFox` | local MySQL | standard MySQL connection string |
 | `FiscalFox:PriceDirectory` | `data/prices` | where the importer reads CSVs |
+| `FiscalFox:AllowedOrigins` | `http://localhost:5090;https://localhost:5090` | CORS allow-list (`*` = any origin) |
+| `FiscalFox:ApiKey` | *(unset)* | when set, `/api/*` requires a matching `X-Api-Key` header |
+| `FiscalFox:RateLimit:PermitPerWindow` / `WindowSeconds` | `300` / `60` | per-IP fixed-window rate limit |
 | `FiscalFox:ApiBaseUrl` (Web) | `http://localhost:5080` | where the UI finds the API |
 
 ## Roadmap ideas
 
-- Transaction-driven holding updates (auto-adjust quantity/cost on Buy/Sell).
-- Correlation matrix & efficient-frontier view (the F# building blocks are already there).
-- CSV/OFX import of real brokerage statements.
-- Auth for multi-user self-hosting.
+- CSV/OFX import of real brokerage statements (replace the synthetic price cache).
+- EF Core migrations (currently `EnsureCreated`) for a safe long-term upgrade path.
+- Multi-user auth on top of the optional API key.
+
+See [CHANGELOG.md](CHANGELOG.md) for what changed and when.
 
 ## License
 

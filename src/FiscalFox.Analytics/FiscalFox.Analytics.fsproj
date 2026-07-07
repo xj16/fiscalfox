@@ -13,6 +13,7 @@
     <Compile Include="Returns.fs" />
     <Compile Include="Risk.fs" />
     <Compile Include="Rebalancing.fs" />
+    <Compile Include="PortfolioMath.fs" />
     <Compile Include="Portfolio.fs" />
   </ItemGroup>
 

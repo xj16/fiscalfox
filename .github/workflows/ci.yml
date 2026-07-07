@@ -26,11 +26,35 @@ jobs:
       - name: Build (Release)
         run: dotnet build FiscalFox.sln -c Release --no-restore
 
-      - name: Test — F# analytics (FsCheck property tests)
-        run: dotnet test tests/FiscalFox.Analytics.Tests/FiscalFox.Analytics.Tests.fsproj -c Release --no-build --verbosity normal
+      - name: Test — F# analytics (FsCheck property tests) + coverage
+        run: >-
+          dotnet test tests/FiscalFox.Analytics.Tests/FiscalFox.Analytics.Tests.fsproj
+          -c Release --no-build --verbosity normal
+          --collect:"XPlat Code Coverage" --results-directory coverage
 
-      - name: Test — API integration (xUnit, in-memory EF)
-        run: dotnet test tests/FiscalFox.Api.Tests/FiscalFox.Api.Tests.csproj -c Release --no-build --verbosity normal
+      - name: Test — API integration (xUnit, in-memory EF) + coverage
+        run: >-
+          dotnet test tests/FiscalFox.Api.Tests/FiscalFox.Api.Tests.csproj
+          -c Release --no-build --verbosity normal
+          --collect:"XPlat Code Coverage" --results-directory coverage
+
+      - name: Coverage summary
+        if: always()
+        run: |
+          dotnet tool install --global dotnet-reportgenerator-globaltool
+          export PATH="$PATH:$HOME/.dotnet/tools"
+          reportgenerator \
+            -reports:"coverage/**/coverage.cobertura.xml" \
+            -targetdir:"coverage/report" \
+            -reporttypes:"MarkdownSummaryGithub;TextSummary;Html"
+          cat coverage/report/Summary.txt >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/report
 
   mysql-smoke:
     name: MySQL end-to-end smoke test

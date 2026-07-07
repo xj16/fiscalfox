@@ -44,5 +44,39 @@ services:
     ports:
       - "5090:8080"
 
+  # --------------------------------------------------------------------------
+  # `demo` profile — a zero-dependency showcase. No MySQL: the API runs with the
+  # in-memory provider and comes up already populated (via the transaction-driven
+  # seed) with a demo portfolio, price history, and analytics.
+  #
+  #   docker compose --profile demo up --build
+  #     API + Swagger -> http://localhost:5080/swagger
+  #     Blazor UI     -> http://localhost:5090
+  # --------------------------------------------------------------------------
+  api-demo:
+    profiles: ["demo"]
+    build:
+      context: .
+      dockerfile: src/FiscalFox.Api/Dockerfile
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      FiscalFox__DatabaseProvider: InMemory
+      FiscalFox__AllowedOrigins: "*"
+    ports:
+      - "5080:8080"
+
+  web-demo:
+    profiles: ["demo"]
+    build:
+      context: .
+      dockerfile: src/FiscalFox.Web/Dockerfile
+    depends_on:
+      - api-demo
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+      FiscalFox__ApiBaseUrl: "http://api-demo:8080"
+    ports:
+      - "5090:8080"
+
 volumes:
   fiscalfox-db:

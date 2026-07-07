@@ -43,3 +43,41 @@ public record PortfolioReport(
     IReadOnlyList<PositionValue> Positions,
     RiskReturnStats Risk,
     IReadOnlyList<RebalanceAction> Rebalance);
+
+/// <summary>One point on the portfolio equity/drawdown curve (index base 1.0).</summary>
+public record EquityPoint(int Index, double Equity, double Drawdown);
+
+/// <summary>
+/// The portfolio's value-weighted equity curve plus its drawdown series, ready
+/// to plot. <see cref="MaxDrawdown"/> matches the report's risk figure.
+/// </summary>
+public record PortfolioTimeseries(
+    IReadOnlyList<EquityPoint> Points,
+    double MaxDrawdown,
+    int Observations);
+
+/// <summary>
+/// A symbol-by-symbol Pearson correlation matrix over aligned daily returns.
+/// <see cref="Matrix"/> is row-major and symmetric with a unit diagonal.
+/// </summary>
+public record CorrelationMatrix(
+    IReadOnlyList<string> Symbols,
+    IReadOnlyList<IReadOnlyList<double>> Matrix);
+
+/// <summary>One sampled portfolio on the risk/return plane (annualized).</summary>
+public record FrontierPoint(
+    double Risk,
+    double Return,
+    double Sharpe,
+    IReadOnlyList<double> Weights);
+
+/// <summary>
+/// A Markowitz efficient-frontier sample: many random long-only portfolios over
+/// the given symbols, the max-Sharpe ("tangency") portfolio, and the current
+/// portfolio plotted on the same axes.
+/// </summary>
+public record EfficientFrontier(
+    IReadOnlyList<string> Symbols,
+    IReadOnlyList<FrontierPoint> Samples,
+    FrontierPoint MaxSharpe,
+    FrontierPoint? Current);

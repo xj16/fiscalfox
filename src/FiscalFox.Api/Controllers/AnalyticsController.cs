@@ -41,4 +41,54 @@ public class AnalyticsController : ControllerBase
             return NotFound($"Instrument '{symbol}' not found.");
         return Ok(stats);
     }
+
+    /// <summary>
+    /// The account's value-weighted equity curve + running drawdown, ready to
+    /// plot. Surfaces the F# engine's cumulative wealth index.
+    /// </summary>
+    [HttpGet("portfolio/{accountId:int}/timeseries")]
+    public async Task<ActionResult<PortfolioTimeseries>> Timeseries(
+        int accountId,
+        CancellationToken ct = default)
+    {
+        var series = await _analytics.BuildTimeseriesAsync(accountId, ct);
+        if (series is null)
+            return NotFound($"Account {accountId} not found.");
+        return Ok(series);
+    }
+
+    /// <summary>
+    /// Pearson correlation matrix across instruments. Pass <c>?symbols=VTI,BND</c>
+    /// to restrict it; omit to correlate every instrument with price history.
+    /// </summary>
+    [HttpGet("correlation")]
+    public async Task<ActionResult<CorrelationMatrix>> Correlation(
+        [FromQuery] string? symbols = null,
+        CancellationToken ct = default)
+    {
+        var list = string.IsNullOrWhiteSpace(symbols)
+            ? null
+            : symbols.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var matrix = await _analytics.CorrelationAsync(list, ct);
+        return Ok(matrix);
+    }
+
+    /// <summary>
+    /// Markowitz efficient frontier for an account: a cloud of random long-only
+    /// portfolios over its holdings, the max-Sharpe portfolio, and the current
+    /// allocation — all on the annualized risk/return plane.
+    /// </summary>
+    [HttpGet("frontier/{accountId:int}")]
+    public async Task<ActionResult<EfficientFrontier>> Frontier(
+        int accountId,
+        [FromQuery] double riskFree = 0.04,
+        [FromQuery] int samples = 3000,
+        [FromQuery] int seed = 12345,
+        CancellationToken ct = default)
+    {
+        var frontier = await _analytics.FrontierAsync(accountId, riskFree, samples, seed, ct);
+        if (frontier is null)
+            return NotFound($"Account {accountId} not found.");
+        return Ok(frontier);
+    }
 }

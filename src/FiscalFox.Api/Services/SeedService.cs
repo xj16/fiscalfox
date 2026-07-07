@@ -1,4 +1,5 @@
 using FiscalFox.Api.Data;
+using FiscalFox.Api.Dtos;
 using FiscalFox.Domain.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,12 +22,14 @@ public class SeedService
 
     private readonly FiscalFoxDbContext _db;
     private readonly ILogger<SeedService> _log;
+    private readonly TransactionService _transactions;
     private readonly string _priceDir;
 
-    public SeedService(FiscalFoxDbContext db, ILogger<SeedService> log, IConfiguration config)
+    public SeedService(FiscalFoxDbContext db, ILogger<SeedService> log, TransactionService transactions, IConfiguration config)
     {
         _db = db;
         _log = log;
+        _transactions = transactions;
         _priceDir = config["FiscalFox:PriceDirectory"]
             ?? Path.Combine(AppContext.BaseDirectory, "data", "prices");
     }
@@ -82,12 +85,15 @@ public class SeedService
             Name = "Demo Portfolio",
             Currency = "USD",
             Type = AccountType.Brokerage,
-            CashBalance = 2_500m
+            CashBalance = 0m
         };
         _db.Accounts.Add(account);
         await _db.SaveChangesAsync(ct);
 
-        // A simple diversified 60/20/10/10-ish target allocation.
+        // Build the demo portfolio through the real transaction engine so the
+        // seeded data has an honest history: a funding deposit, buys that set an
+        // actual cost basis, a partial sell that books realized P/L, and a
+        // dividend. The resulting holdings land on a diversified target mix.
         var demo = new (string Symbol, decimal Qty, decimal Target)[]
         {
             ("VTI", 40m, 0.50m),
@@ -96,6 +102,11 @@ public class SeedService
             ("GLD", 10m, 0.10m),
         };
 
+        // Fund the account generously so every buy clears.
+        await _transactions.ApplyAsync(account.Id,
+            new CreateTransactionDto(TransactionKind.Deposit, null, 0m, 50_000m, 0m, "Initial funding"), ct);
+
+        var seeded = 0;
         foreach (var (symbol, qty, target) in demo)
         {
             var instrument = await _db.Instruments.FirstOrDefaultAsync(i => i.Symbol == symbol, ct);
@@ -107,18 +118,42 @@ public class SeedService
                 .OrderByDescending(p => p.Date)
                 .Select(p => p.Close)
                 .FirstOrDefaultAsync(ct);
+            var buyPrice = lastClose == 0 ? 100m : Math.Round(lastClose * 0.9m, 4); // bought ~10% cheaper
 
-            _db.Holdings.Add(new Holding
-            {
-                AccountId = account.Id,
-                InstrumentId = instrument.Id,
-                Quantity = qty,
-                AverageCost = lastClose == 0 ? 100m : lastClose * 0.9m,
-                TargetWeight = target
-            });
+            // Buy a little extra so we can demo a partial sell on the equity sleeve.
+            var buyQty = symbol == "VTI" ? qty + 8m : qty;
+            await _transactions.ApplyAsync(account.Id,
+                new CreateTransactionDto(TransactionKind.Buy, symbol, buyQty, buyPrice, 1m, $"Open {symbol} position"), ct);
+
+            seeded++;
         }
 
+        // Partial sell on VTI to realize a gain, landing on the target quantity.
+        var vti = await _db.Instruments.FirstOrDefaultAsync(i => i.Symbol == "VTI", ct);
+        if (vti is not null)
+        {
+            var vtiLast = await _db.PriceBars
+                .Where(p => p.InstrumentId == vti.Id)
+                .OrderByDescending(p => p.Date).Select(p => p.Close).FirstOrDefaultAsync(ct);
+            await _transactions.ApplyAsync(account.Id,
+                new CreateTransactionDto(TransactionKind.Sell, "VTI", 8m, Math.Round(vtiLast, 4), 1m, "Trim VTI to target"), ct);
+
+            // A modest dividend on the bond sleeve for a realistic cash line.
+            await _transactions.ApplyAsync(account.Id,
+                new CreateTransactionDto(TransactionKind.Dividend, "BND", 50m, 0.20m, 0m, "BND quarterly distribution"), ct);
+        }
+
+        // Apply the user's target weights (transactions don't set targets).
+        foreach (var (symbol, _, target) in demo)
+        {
+            var holding = await _db.Holdings
+                .Include(h => h.Instrument)
+                .FirstOrDefaultAsync(h => h.AccountId == account.Id && h.Instrument!.Symbol == symbol, ct);
+            if (holding is not null)
+                holding.TargetWeight = target;
+        }
         await _db.SaveChangesAsync(ct);
-        _log.LogInformation("Seeded demo portfolio with {Count} holdings", demo.Length);
+
+        _log.LogInformation("Seeded demo portfolio with {Count} holdings via transaction history", seeded);
     }
 }

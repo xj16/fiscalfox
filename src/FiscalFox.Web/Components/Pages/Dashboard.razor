@@ -60,6 +60,24 @@ else if (_report is not null)
         </div>
     </section>
 
+    <section class="chart-grid">
+        <div class="card">
+            <EquityCurveChart Timeseries="_timeseries" />
+        </div>
+        <div class="card">
+            <AllocationDonut Positions="_report.Positions" />
+        </div>
+    </section>
+
+    <section class="chart-grid">
+        <div class="card">
+            <FrontierScatter Frontier="_frontier" />
+        </div>
+        <div class="card">
+            <CorrelationHeatmap Matrix="_correlation" />
+        </div>
+    </section>
+
     <section class="card">
         <h2>Allocation</h2>
         <table class="data-table">
@@ -140,6 +158,9 @@ else if (!_loading && _error is null)
     private List<AccountVm> _accounts = new();
     private int _selectedAccountId;
     private PortfolioReport? _report;
+    private PortfolioTimeseries? _timeseries;
+    private EfficientFrontier? _frontier;
+    private CorrelationMatrix? _correlation;
     private bool _loading = true;
     private string? _error;
 
@@ -178,7 +199,13 @@ else if (!_loading && _error is null)
         _loading = true;
         try
         {
+            // The report drives the KPIs, tables and allocation donut. The
+            // timeseries, frontier and correlation feed the SVG charts; they are
+            // best-effort so a chart failure never blanks the whole dashboard.
             _report = await Api.GetPortfolioReportAsync(_selectedAccountId);
+            _timeseries = await SafeAsync(() => Api.GetTimeseriesAsync(_selectedAccountId));
+            _frontier = await SafeAsync(() => Api.GetFrontierAsync(_selectedAccountId));
+            _correlation = await SafeAsync(() => Api.GetCorrelationAsync());
             _error = null;
         }
         catch (Exception ex)
@@ -189,6 +216,12 @@ else if (!_loading && _error is null)
         {
             _loading = false;
         }
+    }
+
+    private static async Task<T?> SafeAsync<T>(Func<Task<T?>> fetch)
+    {
+        try { return await fetch(); }
+        catch { return default; }
     }
 
     private static string Pct(double v) => v.ToString("P1");

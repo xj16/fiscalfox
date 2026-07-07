@@ -10,7 +10,8 @@ public record InstrumentDto(int Id, string Symbol, string Name, AssetClass Asset
 
 public record HoldingDto(
     int Id, int InstrumentId, string Symbol, decimal Quantity,
-    decimal AverageCost, decimal? TargetWeight, decimal LastClose, decimal MarketValue);
+    decimal AverageCost, decimal? TargetWeight, decimal LastClose, decimal MarketValue,
+    decimal RealizedPnL, decimal UnrealizedPnL);
 
 public record CreateHoldingDto(string Symbol, decimal Quantity, decimal AverageCost, decimal? TargetWeight);
 

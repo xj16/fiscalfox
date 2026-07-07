@@ -50,6 +50,7 @@ public class FiscalFoxDbContext : DbContext
             e.Property(h => h.Quantity).HasPrecision(18, 8);
             e.Property(h => h.AverageCost).HasPrecision(18, 6);
             e.Property(h => h.TargetWeight).HasPrecision(9, 6);
+            e.Property(h => h.RealizedPnL).HasPrecision(18, 4);
             e.HasOne(h => h.Account)
                 .WithMany(a => a.Holdings)
                 .HasForeignKey(h => h.AccountId)

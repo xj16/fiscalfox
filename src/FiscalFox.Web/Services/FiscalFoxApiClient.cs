@@ -32,4 +32,13 @@ public class FiscalFoxApiClient
 
     public async Task<RiskReturnStats?> GetInstrumentRiskAsync(string symbol, CancellationToken ct = default) =>
         await _http.GetFromJsonAsync<RiskReturnStats>($"api/analytics/instrument/{symbol}", JsonOpts, ct);
+
+    public async Task<PortfolioTimeseries?> GetTimeseriesAsync(int accountId, CancellationToken ct = default) =>
+        await _http.GetFromJsonAsync<PortfolioTimeseries>($"api/analytics/portfolio/{accountId}/timeseries", JsonOpts, ct);
+
+    public async Task<CorrelationMatrix?> GetCorrelationAsync(CancellationToken ct = default) =>
+        await _http.GetFromJsonAsync<CorrelationMatrix>("api/analytics/correlation", JsonOpts, ct);
+
+    public async Task<EfficientFrontier?> GetFrontierAsync(int accountId, int samples = 2500, CancellationToken ct = default) =>
+        await _http.GetFromJsonAsync<EfficientFrontier>($"api/analytics/frontier/{accountId}?samples={samples}", JsonOpts, ct);
 }

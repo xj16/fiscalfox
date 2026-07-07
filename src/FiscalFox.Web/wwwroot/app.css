@@ -128,7 +128,39 @@ h2 { font-size: 1.15rem; margin: 0 0 0.75rem; }
 
 code { background: var(--panel-alt); padding: 0.1rem 0.35rem; border-radius: 5px; font-size: 0.88em; }
 
+/* ---- Charts (inline SVG, no external libs) ---- */
+.chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+.chart { margin: 0; }
+.chart figcaption {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.6rem;
+}
+.chart svg { width: 100%; height: auto; display: block; }
+.chart-scroll { overflow-x: auto; }
+.chart .ax { fill: var(--muted); font-size: 11px; }
+
+/* donut */
+.donut-row { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; }
+.donut-center { font-size: 26px; font-weight: 700; fill: var(--ink); }
+.donut-sub { font-size: 11px; fill: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+.legend { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.35rem; min-width: 140px; }
+.legend li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; }
+.legend .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
+.legend-sym { font-weight: 600; }
+.legend-val { margin-left: auto; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* heatmap */
+.hm-label { fill: var(--ink); font-size: 12px; font-weight: 600; }
+.hm-val { font-size: 11px; font-variant-numeric: tabular-nums; }
+
 @media (max-width: 640px) {
     .content { padding: 1rem; }
     .kpi-value { font-size: 1.25rem; }
+    .chart-grid { grid-template-columns: 1fr; }
 }

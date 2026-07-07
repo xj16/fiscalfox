@@ -1,0 +1,104 @@
+@using FiscalFox.Domain.Analytics
+@using System.Globalization
+
+@*
+    Dependency-free inline-SVG efficient-frontier scatter. Each dot is a random
+    long-only portfolio colored by Sharpe; the max-Sharpe ("tangency") portfolio
+    and the account's current allocation are highlighted on the same axes.
+*@
+
+@if (Frontier is null || Frontier.Samples.Count < 3)
+{
+    <p class="muted">Not enough data to sample an efficient frontier.</p>
+}
+else
+{
+    var samples = Frontier.Samples;
+    const double W = 460, H = 300, padL = 52, padR = 16, padT = 16, padB = 40;
+    var plotW = W - padL - padR;
+    var plotH = H - padT - padB;
+
+    var xs = samples.Select(s => s.Risk).ToList();
+    var ys = samples.Select(s => s.Return).ToList();
+    double minX = xs.Min(), maxX = xs.Max();
+    double minY = ys.Min(), maxY = ys.Max();
+    if (Frontier.Current is not null)
+    {
+        minX = Math.Min(minX, Frontier.Current.Risk); maxX = Math.Max(maxX, Frontier.Current.Risk);
+        minY = Math.Min(minY, Frontier.Current.Return); maxY = Math.Max(maxY, Frontier.Current.Return);
+    }
+    var padX = (maxX - minX) * 0.08 + 1e-6;
+    var padYv = (maxY - minY) * 0.08 + 1e-6;
+    minX -= padX; maxX += padX; minY -= padYv; maxY += padYv;
+
+    double X(double v) => padL + plotW * (v - minX) / (maxX - minX);
+    double Y(double v) => padT + plotH * (1 - (v - minY) / (maxY - minY));
+
+    var maxSharpe = samples.Max(s => s.Sharpe);
+    var minSharpe = samples.Min(s => s.Sharpe);
+
+    <figure class="chart">
+        <figcaption>Efficient frontier <span class="muted">— random long-only portfolios, colored by Sharpe</span></figcaption>
+        <svg viewBox="0 0 @F(W) @F(H)" role="img" aria-label="Efficient frontier risk versus return scatter">
+            <!-- axes -->
+            <line x1="@F(padL)" y1="@F(padT)" x2="@F(padL)" y2="@F(padT + plotH)" stroke="var(--border)" />
+            <line x1="@F(padL)" y1="@F(padT + plotH)" x2="@F(padL + plotW)" y2="@F(padT + plotH)" stroke="var(--border)" />
+            <svg:text x="@F(padL + plotW / 2)" y="@F(H - 6)" text-anchor="middle" class="ax">Annualized volatility →</svg:text>
+            <svg:text x="14" y="@F(padT + plotH / 2)" text-anchor="middle" class="ax"
+                  transform="rotate(-90 14 @F(padT + plotH / 2))">Annualized return →</svg:text>
+
+            <!-- x ticks -->
+            @foreach (var frac in new[] { 0.0, 0.5, 1.0 })
+            {
+                var vx = minX + (maxX - minX) * frac;
+                <svg:text x="@F(X(vx))" y="@F(padT + plotH + 16)" text-anchor="middle" class="ax">@vx.ToString("P0")</svg:text>
+            }
+            @foreach (var frac in new[] { 0.0, 0.5, 1.0 })
+            {
+                var vy = minY + (maxY - minY) * frac;
+                <svg:text x="@F(padL - 6)" y="@F(Y(vy) + 3)" text-anchor="end" class="ax">@vy.ToString("P0")</svg:text>
+            }
+
+            <!-- sample cloud -->
+            @foreach (var s in samples)
+            {
+                <circle cx="@F(X(s.Risk))" cy="@F(Y(s.Return))" r="2.4"
+                        fill="@SharpeColor(s.Sharpe, minSharpe, maxSharpe)" fill-opacity="0.7" />
+            }
+
+            <!-- max-Sharpe (tangency) portfolio -->
+            <circle cx="@F(X(Frontier.MaxSharpe.Risk))" cy="@F(Y(Frontier.MaxSharpe.Return))" r="6"
+                    fill="none" stroke="#16a34a" stroke-width="2.5">
+                <title>Max Sharpe @Frontier.MaxSharpe.Sharpe.ToString("0.00")</title>
+            </circle>
+
+            <!-- current portfolio -->
+            @if (Frontier.Current is not null)
+            {
+                <circle cx="@F(X(Frontier.Current.Risk))" cy="@F(Y(Frontier.Current.Return))" r="6"
+                        fill="none" stroke="#0f172a" stroke-width="2.5">
+                    <title>Current portfolio — Sharpe @Frontier.Current.Sharpe.ToString("0.00")</title>
+                </circle>
+                <svg:text x="@F(X(Frontier.Current.Risk) + 9)" y="@F(Y(Frontier.Current.Return) + 3)" class="ax">current</svg:text>
+            }
+            <svg:text x="@F(X(Frontier.MaxSharpe.Risk) + 9)" y="@F(Y(Frontier.MaxSharpe.Return) - 6)"
+                  class="ax" fill="#16a34a">max Sharpe</svg:text>
+        </svg>
+    </figure>
+}
+
+@code {
+    [Parameter] public EfficientFrontier? Frontier { get; set; }
+
+    private static string F(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+    // Low Sharpe => slate, high Sharpe => fox orange.
+    private static string SharpeColor(double s, double lo, double hi)
+    {
+        var t = hi > lo ? Math.Clamp((s - lo) / (hi - lo), 0, 1) : 0.5;
+        int r = (int)Math.Round(100 + (234 - 100) * t);
+        int g = (int)Math.Round(116 + (115 - 116) * t);
+        int b = (int)Math.Round(139 + (23 - 139) * t);
+        return $"rgb({r},{g},{b})";
+    }
+}

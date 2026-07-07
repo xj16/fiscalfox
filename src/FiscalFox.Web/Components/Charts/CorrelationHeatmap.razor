@@ -1,0 +1,84 @@
+@using FiscalFox.Domain.Analytics
+@using System.Globalization
+
+@*
+    Dependency-free inline-SVG correlation heatmap. Each cell is colored on a
+    diverging blue→white→orange scale from -1 to +1. Reads the F# engine's
+    symbol-by-symbol Pearson correlation matrix.
+*@
+
+@if (Matrix is null || Matrix.Symbols.Count < 2)
+{
+    <p class="muted">Need at least two instruments to correlate.</p>
+}
+else
+{
+    var syms = Matrix.Symbols;
+    var n = syms.Count;
+    const double cell = 46, labelPad = 56, top = 22;
+    var w = labelPad + n * cell + 8;
+    var h = top + labelPad + n * cell + 8;
+
+    <figure class="chart">
+        <figcaption>Correlation matrix <span class="muted">— daily returns, Pearson</span></figcaption>
+        <div class="chart-scroll">
+            <svg viewBox="0 0 @F(w) @F(h)" role="img" aria-label="Instrument correlation heatmap"
+                 style="min-width:@(w)px;max-width:100%">
+                @* column labels *@
+                @for (var j = 0; j < n; j++)
+                {
+                    <svg:text x="@F(labelPad + j * cell + cell / 2)" y="@F(top + labelPad - 6)"
+                          text-anchor="middle" class="hm-label">@syms[j]</svg:text>
+                }
+                @for (var i = 0; i < n; i++)
+                {
+                    @* row label *@
+                    <svg:text x="@F(labelPad - 8)" y="@F(top + labelPad + i * cell + cell / 2 + 4)"
+                          text-anchor="end" class="hm-label">@syms[i]</svg:text>
+                    @for (var j = 0; j < n; j++)
+                    {
+                        var v = Matrix.Matrix[i][j];
+                        var x = labelPad + j * cell;
+                        var y = top + labelPad + i * cell;
+                        <rect x="@F(x)" y="@F(y)" width="@F(cell - 2)" height="@F(cell - 2)"
+                              rx="4" fill="@Color(v)">
+                            <title>@syms[i] · @syms[j]: @v.ToString("0.00")</title>
+                        </rect>
+                        <svg:text x="@F(x + (cell - 2) / 2)" y="@F(y + (cell - 2) / 2 + 4)"
+                              text-anchor="middle" class="hm-val" fill="@TextColor(v)">@v.ToString("0.00")</svg:text>
+                    }
+                }
+            </svg>
+        </div>
+    </figure>
+}
+
+@code {
+    [Parameter] public CorrelationMatrix? Matrix { get; set; }
+
+    private static string F(double v) => v.ToString("0.###", CultureInfo.InvariantCulture);
+
+    // Diverging scale: -1 => teal-blue, 0 => near-white, +1 => fox orange.
+    private static string Color(double v)
+    {
+        v = Math.Clamp(v, -1, 1);
+        (int r, int g, int b) neg = (31, 122, 140);   // teal
+        (int r, int g, int b) mid = (248, 250, 252);
+        (int r, int g, int b) pos = (234, 115, 23);    // orange
+        if (v >= 0)
+        {
+            var t = v;
+            return Rgb(Lerp(mid.r, pos.r, t), Lerp(mid.g, pos.g, t), Lerp(mid.b, pos.b, t));
+        }
+        else
+        {
+            var t = -v;
+            return Rgb(Lerp(mid.r, neg.r, t), Lerp(mid.g, neg.g, t), Lerp(mid.b, neg.b, t));
+        }
+    }
+
+    private static string TextColor(double v) => Math.Abs(v) > 0.6 ? "#ffffff" : "#0f172a";
+
+    private static int Lerp(int a, int b, double t) => (int)Math.Round(a + (b - a) * t);
+    private static string Rgb(int r, int g, int b) => $"rgb({r},{g},{b})";
+}

@@ -22,4 +22,11 @@ public class Holding
 
     /// <summary>Optional user-set target weight (0..1) for rebalancing.</summary>
     public decimal? TargetWeight { get; set; }
+
+    /// <summary>
+    /// Cumulative realized profit/loss booked on Sell transactions
+    /// (proceeds minus average cost of units sold, net of fees).
+    /// Unrealized P/L is computed on the fly from the live price.
+    /// </summary>
+    public decimal RealizedPnL { get; set; }
 }
